@@ -62,8 +62,14 @@ public struct OKLabColorValue: Codable, Equatable, Hashable, Sendable, CustomStr
 
     // MARK: - Color Space Conversions
 
-    /// Converts OKLab to sRGB components (0.0 ... 1.0)
+    /// Converts OKLab to gamma-encoded sRGB components (0.0 ... 1.0)
     public func toSRGB() -> (red: Double, green: Double, blue: Double) {
+        let (r, g, bComp) = toLinearSRGB()
+        return (red: gammaCompress(r), green: gammaCompress(g), blue: gammaCompress(bComp))
+    }
+
+    /// Converts OKLab to linear-light sRGB components (0.0 ... 1.0), clamped to the sRGB gamut.
+    public func toLinearSRGB() -> (red: Double, green: Double, blue: Double) {
         let l_ = lightness + 0.3963377774 * a + 0.2158037573 * b
         let m_ = lightness - 0.1055613458 * a - 0.0638541728 * b
         let s_ = lightness - 0.0894841775 * a - 1.2914855480 * b
@@ -76,14 +82,10 @@ public struct OKLabColorValue: Codable, Equatable, Hashable, Sendable, CustomStr
         let gLinear = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s
         let bLinear = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
 
-        let r = gammaCompress(rLinear)
-        let g = gammaCompress(gLinear)
-        let bComp = gammaCompress(bLinear)
-
         return (
-            red: min(max(r, 0.0), 1.0),
-            green: min(max(g, 0.0), 1.0),
-            blue: min(max(bComp, 0.0), 1.0)
+            red: min(max(rLinear, 0.0), 1.0),
+            green: min(max(gLinear, 0.0), 1.0),
+            blue: min(max(bLinear, 0.0), 1.0)
         )
     }
 
@@ -201,9 +203,10 @@ public struct OKLabColorValue: Codable, Equatable, Hashable, Sendable, CustomStr
 
     // MARK: - WCAG Contrast Ratio
 
-    /// Relative Luminance according to WCAG 2.1
+    /// Relative luminance according to WCAG 2.1: the Rec. 709 weights applied to linear-light sRGB
+    /// (gamma-expanded) components, not to the gamma-encoded values.
     public var relativeLuminance: Double {
-        let (r, g, b) = toSRGB()
+        let (r, g, b) = toLinearSRGB()
         return 0.2126 * r + 0.7152 * g + 0.0722 * b
     }
 

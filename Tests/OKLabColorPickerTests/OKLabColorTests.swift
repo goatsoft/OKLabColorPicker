@@ -62,4 +62,21 @@ final class OKLabColorTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(ratio, 20.0) // ~21:1 for black and white
         XCTAssertTrue(black.isWCAGAACompliant(with: white))
     }
+
+    /// Mid-tones distinguish linear-light luminance from gamma-encoded values: black and white agree
+    /// either way. Reference ratios are the WCAG 2.1 values for the hex colours.
+    func testWCAGContrastRatioUsesLinearLuminance() throws {
+        let white = try XCTUnwrap(OKLabColorValue.from(hex: "#FFFFFF"))
+        let cases: [(hex: String, ratio: Double)] = [
+            ("#777777", 4.478), ("#767676", 4.542), ("#595959", 7.005), ("#FF0000", 3.998), ("#0000FF", 8.592),
+        ]
+        for (hex, expected) in cases {
+            let colour = try XCTUnwrap(OKLabColorValue.from(hex: hex))
+            XCTAssertEqual(colour.contrastRatio(with: white), expected, accuracy: 0.01, hex)
+        }
+        let grey = try XCTUnwrap(OKLabColorValue.from(hex: "#777777"))
+        XCTAssertEqual(grey.relativeLuminance, 0.1845, accuracy: 0.0005)
+        XCTAssertFalse(grey.isWCAGAACompliant(with: white), "#777777 on white is just under 4.5:1")
+        XCTAssertTrue(try XCTUnwrap(OKLabColorValue.from(hex: "#767676")).isWCAGAACompliant(with: white))
+    }
 }
